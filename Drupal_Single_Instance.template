@@ -6,7 +6,7 @@
   "Parameters" : {
 
     "KeyName" : {
-      "Default": "HDSDrupalKey",
+      "Default": "8nZ19OGumK_DrupalKey",
       "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
       "Type" : "String"
     },
