@@ -19,14 +19,14 @@
       - name: wordpress_usr
         password: ywIapecJalg6
         priv: wordpress_db.*:ALL
-        host: '192.168.56.%'
+        host: '10.0.0.%'
   roles:
     - bertvv.mariadb
 
 - hosts: '*-wordpress'
   become: true
   vars:
-    wordpress_database_host: 192.168.56.99
+    wordpress_database_host: 10.0.0.200
     wordpress_database: wordpress_db
     wordpress_user: wordpress_usr
     wordpress_password: ywIapecJalg6
