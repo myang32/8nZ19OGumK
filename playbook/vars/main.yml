@@ -1,0 +1,5 @@
+drupal_install_site: true
+drupal_build_composer_project: true
+drupal_composer_install_dir: "/var/www/drupal"
+drupal_core_path: "{{ drupal_composer_install_dir }}/web"
+drupal_domain: "example.com"
