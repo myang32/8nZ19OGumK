@@ -53,7 +53,7 @@
 
 
   - name: Downloading Wodpress.
-    get_url: url=http://www.wordpress.org/latest.tar.gz  dest=/tmp/wordpress.tar
+    get_url: url=https://wordpress.org/wordpress-4.8.tar.gz  dest=/tmp/wordpress.tar
 
   - name: Extracting wordpress contents.
     unarchive: src=/tmp/wordpress.tar dest=/tmp/  remote_src=yes
