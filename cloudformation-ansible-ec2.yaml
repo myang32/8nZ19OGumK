@@ -1,0 +1,163 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Cloudformation for build ansible server by Zhao Yang"
+Parameters: 
+  KeyName: 
+    Description: "Give EC2 KeyPair to enable SSH access to the EC2 instance"
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "[\\x20-\\x7E]*"
+    ConstraintDescription: "KeyPair description can contain only ASCII characters."
+  InstanceType: 
+    Description: "The type of EC2 instance to launch"
+    Type: String
+    Default: "t2.micro"
+  SecurityGroup: 
+    Description: "The security group to add the EC2 instance to"
+    Type: String
+    Default: default
+Mappings: 
+  AWSRegionArch2AMI: 
+    "us-east-1": 
+      PV64: "ami-0f4cfd64"
+      HVM64: "ami-0d4cfd66"
+      HVMG2: "ami-5b05ba30"
+    "us-west-2": 
+      PV64: "ami-d3c5d1e3"
+      HVM64: "ami-d5c5d1e5"
+      HVMG2: "ami-a9d6c099"
+    "us-west-1": 
+      PV64: "ami-85ea13c1"
+      HVM64: "ami-87ea13c3"
+      HVMG2: "ami-37827a73"
+Resources: 
+  HDSVPC: 
+    Type: "AWS::EC2::VPC"
+    Properties: 
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: 
+        - 
+           Key: Application
+           Value: 
+             Ref: "AWS::StackId"
+  HDSVPCSubnet: 
+    Type: "AWS::EC2::Subnet"
+    Properties: 
+      VpcId: 
+        Ref: HDSVPC
+      CidrBlock: "10.0.0.0/24"
+      Tags: 
+        - 
+           Key: Application
+           Value: 
+             Ref: "AWS::StackId"
+  InternetGateway: 
+    Type: "AWS::EC2::InternetGateway"
+    Properties: 
+      Tags: 
+        - 
+           Key: Application
+           Value: 
+             Ref: "AWS::StackId"
+  AttachGateway: 
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties: 
+      VpcId: 
+        Ref: HDSVPC
+      InternetGatewayId: 
+        Ref: InternetGateway
+  RouteTable: 
+    Type: "AWS::EC2::RouteTable"
+    Properties: 
+      VpcId: 
+        Ref: HDSVPC
+      Tags: 
+        - 
+           Key: Application
+           Value: 
+             Ref: "AWS::StackId"
+  Route: 
+    Type: "AWS::EC2::Route"
+    DependsOn: AttachGateway
+    Properties: 
+      RouteTableId: 
+        Ref: RouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: 
+        Ref: InternetGateway
+  SubnetRouteTableAssociation: 
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties: 
+      SubnetId: 
+        Ref: HDSVPCSubnet
+      RouteTableId: 
+        Ref: RouteTable
+  IPAddress: 
+    Type: "AWS::EC2::EIP"
+    DependsOn: AttachGateway
+    Properties: 
+      Domain: vpc
+      InstanceId: 
+        Ref: Ec2Instance
+  InstanceSecurityGroup: 
+    Type: "AWS::EC2::SecurityGroup"
+    Properties: 
+      VpcId: 
+        Ref: HDSVPC
+      GroupDescription: "Enable SSH access via port 22"
+      SecurityGroupIngress: 
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: "0.0.0.0/0"
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: "0.0.0.0/0"
+  Ec2Instance: 
+    Type: "AWS::EC2::Instance"
+    Properties: 
+      ImageId: 
+        "Fn::FindInMap": 
+           - AWSRegionArch2AMI
+           - !Ref "AWS::Region" 
+           - HVM64
+      SecurityGroupIds: 
+        - !Ref InstanceSecurityGroup
+      SubnetId: 
+        Ref: HDSVPCSubnet
+      InstanceType: 
+        Ref: InstanceType
+      KeyName: 
+        Ref: KeyName
+      Tags: 
+        - 
+           Key: Name
+           Value: 
+             Ref: "AWS::StackName"
+      UserData:
+        Fn::Base64: !Sub |  
+            #!/bin/sh
+            export AWS_DEFAULT_REGION=us-east-1
+            yum -y update aws-cfn-bootstrap
+            yum install -y git
+            yum install -y ansible --enablerepo=epel
+            sed -i -e '/\[epel\]/,/^\[/s/enabled=0/enabled=1/' /etc/yum.repos.d/epel.repo
+            yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+            yum-config-manager --enable epel
+            cd /
+            git clone git://github.com/ansible/ansible.git --recursive
+            cd /ansible
+            source hacking/env-setup
+            mkdir /ansible_project
+            cd /ansible_project
+            git clone git://github.com/myang32/8nZ19OGumK.git --recursive
+            cd /ansible_project/8nZ19OGumK
+            ansible-playbook wordpress.yml
+            yum-config-manager --disable epel
+Outputs: 
+  ServerDNS: 
+    Description: "DNS name of launched server"
+    Value: !GetAtt Ec2Instance.PublicDnsName
